@@ -1,0 +1,49 @@
+
+//V CARA MENGKODEKAN LOGIKA GAME?
+Logika game sepenuhnya diatur oleh class bernama "instance", Instansi berati objek dalam game yang dapat digerakan, memiliki bentuk, dan memiliki logika, bahkan mengatur logika game.
+instansi memiliki variabel bernama "event", event adalah sumber logika dan penggambaran.
+lewat event kamu bisa menyetel logika game, seperti contoh:
+
+
+#V MENAMBAHKAN INSTANSI KE DUNIA GAME
+roomAddInstance("roomInit" , instance(spriteAsset(asset["gameIcon"]), 50 , 80 , 190 , 100) , "obj_logikaGame")
+
+#V FUNGSI LOGIKA GAME YANG AKAN DISETEL
+def LOGIKAGAME():
+    print("hello")
+
+#V MENAMBAHKAN FUNGSI YANG AKAN DIJALANKAN DI EVENT
+instanceSetEvent("roomInit" , "obj_logikaGame" , "step" , LOGIKAGAME) #< Event "step", berati fungsi akan dijalankan setiap frame.
+
+
+Event berati kejadian, setiap suatu kejadian terjadi, fungsi akan dijalankan.
+Saat ini tersedia beberapa event, berikut adalah event yang tersedia:
+
+-| EVENT FASE LOGIKA V
+"beginStep"    = Menjalankan fungsi setiap frame di urutan awal, cocok untuk logika seperti pembaruan variabel delta time misalnya.
+"step"         = Menjalankan fungsi setiap frame di urutan menengah, cocok untuk logika perubahan koordinat posisi karakter.
+"endStep"      = Menjalankan fungsi setiap frame di urutan akhir, cocok untuk logika seperti perubahan koordinat posisi kamera.
+
+-| EVENT FASE GAMBAR V
+"beginDraw"    = Menjalankan fungsi setiap frame pada fase gambar di urutan awal, cocok untuk gambar aksesoris bagian belakang dari karakter.
+"draw"         = Menjalankan fungsi setiap frame pada fase gambar di urutan menengah, cocok untuk gambar si karakter.
+"drawEnd"      = Menjalankan fungsi setiap frame pada fase gambar di urutan akhir, cocok untuk gambar aksesoris bagian depan dari karakter.
+
+"beginDrawGUI" = Menjalankan fungsi setiap frame pada fase gambar GUI di urutan awal. layaknya seperti gambar stiker di layar.
+"drawGUI"      = Menjalankan fungsi setiap frame pada fase gambar GUI di urutan menengah. layaknya seperti gambar stiker di layar.
+"endDrawGUI"   = Menjalankan fungsi setiap frame pada fase gambar GUI di urutan akhir. layaknya seperti gambar stiker di layar.
+
+-| EVENT FASE YANG LAIN V
+"create"       = Menjalankan fungsi saat instansi baru saja dibuat.
+"destroy"      = Fungsi akan dijalankan ketika instansi dihancurkan.
+
+
+
+
+
+CATATAN:
+> Fungsi / method seperti drawSprite(), drawRect(), DLL Harus dijalankan di fase event gambar, jika tidak urutan event akan rusak,
+> Tidak disarankan jalankan fungsi / method di kode inti langsung selain di event instansi.
+
+
+
