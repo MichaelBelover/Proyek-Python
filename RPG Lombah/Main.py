@@ -407,6 +407,8 @@ class room:
         # LAYER HANYA BLUEPRINT SAJA (Akan dikonversi sebagai objek asli saat room dimasuki)
         self.blueprintLayers = {}
 
+
+
         self.cameraX = 0
         self.cameraY = 0
         self.cameraWidth = screenWidth
@@ -460,12 +462,44 @@ class fontAsset:
 
 
 class backgroundLayer():
-    def __init__(self , spriteAsset , horizontalTile = False , verticalTile = False , strecth = False , colour = (255,255,255)):
+    def __init__(self , spriteAsset , horizontalTile = False , verticalTile = False , tileRotation = 0 , strecth = False , colour = (255,255,255)):
         self.spriteAsset    = spriteAsset
         self.horizontalTile = horizontalTile
+        self.tileRotation   = tileRotation
         self.verticalTile   = verticalTile
         self.strecth        = strecth
         self.colour         = colour
+
+    def draw(self):
+        if (not isinstance(self.spriteAsset , spriteAsset)or(not isinstance(self.spriteAsset , list))):
+            print("ERROR!! variabel \"self.spriteAsset\" SALAH! di fungsi draw di class backgroundLayer")
+        
+        #V Variabel 
+        imageSurface = self.spriteAsset.surface
+
+        #V Jika gambar diperintahkan melebar memenuhi room
+        if (self.strecth):
+            # 1. Ambil ukuran asli gambar
+            original_width = imageSurface.get_width()
+            original_height = imageSurface.get_height()
+
+            # 2. Hitung ScaleX dan ScaleY (Target / Asli)
+            # Menggunakan ternary operator untuk mencegah pembagian dengan nol (ZeroDivisionError)
+            scaleX = currentRoom.roomWidth / original_width if original_width > 0 else 1
+            scaleY = currentRoom.roomHeight / original_height if original_height > 0 else 1
+
+            # 3. Panggil fungsi drawSprite
+            # KOREKSI 2: drawSprite meminta argumen pertama berupa object 'spriteAsset', bukan 'imageSurface'.
+            drawSprite(self.spriteAsset, 0, 0, scaleX, scaleY)
+
+
+        #V Jika gambar diperintahkan sebagai tile memenuhi room
+        elif (self.horizontalTile)or(self.verticalTile):
+            
+
+
+
+
 
 class instanceLayer():
     def __init__(self , instances = {} , depth = 0):
@@ -670,12 +704,16 @@ drawSetFont(fontAsset("Arial" , 12))
 #V Sekumpulan aset mentah yang akan digunakan untuk game, alih-alih menyatukan dengan variabel luar lain.
 rawAssets = {
     "gameIcon" : pygame.image.load(os.path.join("assets" , "gameIcon2.png")),
+
+    "grassTile" : pygame.image.load(os.path.join("assets" , "grassTile.jpg")),
 }
 
 
 #V Sekumpulan aset yang sudah dibungkus.
 Assets = {
     "spr_heart" : spriteAsset(rawAssets["gameIcon"]),
+
+    "spr_grassTile" : spriteAsset(rawAssets["grassTile"]),
 }
 #========================
 
@@ -687,7 +725,8 @@ Assets = {
 # INISIALISASI RUANGAN (1)
 #========================
 roomInstances["roomInit"] = room(1000 , 1000)
-roomInstances["room2"]    = room(1000 , 1000)
+
+roomInstances["room2"] = room(2000 , 2000)
 #========================
 
 
@@ -725,6 +764,7 @@ def control():
 # INISIALISASI INSTANSI, DAN FUNGSI / METHOD UNTUK EVENT INSTANSI.
 #========================
 #> Inisialisasi blueprint "roomInit"
+roomAddBlueprint("roomInit", "backgroundLayer", backgroundLayer(Assets["spr_grassTile"], True,True,0, False))
 roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
     instances = {
             "instanceTest" : instance(Assets["spr_heart"], 200, 200, 4, 4, eventDefinition = {
@@ -786,8 +826,9 @@ while isRunning:
         if event.type == pygame.QUIT:
             isRunning = False
 
-    currentRoom.cameraSurface.fill((0, 0, 0)) # Warna hitam (atau warna background)
-    aplicationSurface.fill((0, 0, 0))
+    #V Mengatur warna background ke hitam.
+    currentRoom.cameraSurface.fill((0,0,0)) 
+    aplicationSurface.fill((0,0,0))
 
     #V Penanganan logika instansi dan ruangan.
     for eventName in runingEventNodes:
@@ -802,6 +843,7 @@ while isRunning:
     runingEventNodes["beginDrawGUI"].append( lambda: globals().update({"onGuiLoop": True}) )
 
 
+    
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
     if (DEBUGUI):
         runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}", 20 , 20 , 2 , 2.3))
