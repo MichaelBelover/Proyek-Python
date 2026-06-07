@@ -31,7 +31,29 @@ roomInstances = {} #< Variabel sekumpulan ruangan.
 
 globalVariables = {} #< Variabel yang aman untuk diakses semua event.
 
+constants = { #< Konstanta yang aman untuk diakses semua event, tetapi tidak boleh diubah nilainya.
+    "surface" : {
+        "applicationSurface" : 0,
+        "cameraSurface" : 0,
+    },
+    "col" : {
+        "white" : (255, 255, 255),
+        "black" : (0, 0, 0),
+        "red"   : (255, 0, 0),
+        "green" : (0, 255, 0),
+        "blue"  : (0, 0, 255),
+        "yellow": (255, 255, 0),
+        "cyan"  : (0, 255, 255),
+        "magenta": (255, 0, 255),
+        "gray"  : (128, 128, 128),
+        "lightYellow": (255, 255, 150),
+        "lightGreen": (150, 255, 150),
+        "neonPink": (255, 20, 147),
+        "neonBlue": (0, 255, 255),
+        "neonGreen": (57, 255, 20),
+    },
 
+}
 
 
 
@@ -49,6 +71,8 @@ currentRoom = None #< Data dunia ruangan saat ini yang dipakai.
 layers = {}        #< Hasil dari konversi blueprintLayer
 
 onGuiLoop = False #< Apakah di event saat ini sedang berada di fase digambarnya GUI.
+
+currentDrawColour = (255,255,255) #< Warna yang saat ini digunakan untuk menggambar.
 currentDrawFontAsset = None #< Font yang saat ini digunakan untuk menggambar.
 
 #V Event dengan sekumpulan fungsi/method nya yang sedang dijalankan di step saat ini.
@@ -105,32 +129,36 @@ def roomGoto(roomName):
     currentRoomName = roomName
     
     if (roomName in roomInstances):
-        ## LANJUTKAN NNTI!
-        roomInstance = room(roomInstances[roomName].roomWidth , roomInstances[roomName].roomHeight) #< Membuat instansi baru berdasarkan ukuran ruangan yang sudah dibuat sebelumnya di variabel roomInstances.
+        # 1. Ambil data cetak biru (blueprint) ruangan aslinya
+        baseRoomBlueprint = roomInstances[roomName]
+        
+        # 2. Buat instansi ruangan BARU agar posisi kamera, dll di-reset
+        roomInstance = room(baseRoomBlueprint.roomWidth, baseRoomBlueprint.roomHeight)
+        
+        # 3. SALIN blueprintLayers dari baseRoomBlueprint ke roomInstance yang baru.
+        # Kita menggunakan copy.deepcopy agar data di memori benar-benar digandakan, 
+        # sehingga referensi objek aslinya tetap murni dan tidak berubah.
+        roomInstance.blueprintLayers = copy.deepcopy(baseRoomBlueprint.blueprintLayers)
+        
         if (isinstance(roomInstance , room)):
             currentRoom = roomInstance #< Mengganti variabel yang menjelaskan instansi Room saat ini yang dimasuki.
             layers.clear()             #< Membersihkan objek di room sebelumnya di memori
             
-            #V Mengonversi blueprint layer menjadi layer asli yang akan digunakan di dalam game, dan menyimpan hasilnya di variabel "layers".
+            #V Mengonversi blueprint layer menjadi layer asli yang akan digunakan di dalam game
             for layerName in roomInstance.blueprintLayers:
                 blueprintLayer = roomInstance.blueprintLayers[layerName]
 
-                #V Membuat ulang layer baru berdasarkan blueprint layer, dan menyimpan hasilnya di variabel "layers" untuk digunakan di dalam game.
                 if (isinstance(blueprintLayer , backgroundLayer)):
                     layers[layerName] = backgroundLayer(blueprintLayer.spriteAsset , blueprintLayer.horizontalTile , blueprintLayer.verticalTile , blueprintLayer.strecth , blueprintLayer.colour)
 
                 elif (isinstance(blueprintLayer , instanceLayer)):
                     layers[layerName] = instanceLayer(blueprintLayer.instances, blueprintLayer.depth)
 
-
-
-
-                #V Jika blueprint layer bukan berupa instansi tidak termasuk daftar layer, maka akan muncul pesan error.
                 else:
                     print(f"FATAL ERROR!!! Di variabel blueprintLayers di class room terdapat nilai selain instansi class backgroundLayer atau instanceLayer!!\nNilai: {blueprintLayer}")
                     return
         else:
-            print(f"FATAL ERROR!!! Di variabel roomInstances terdapat nilai selain instansi class room!!\nNilai: {roomInstance}")
+            print(f"FATAL ERROR!!! Gagal membuat instansi class room!!")
             return
     else:
         print(f"ERROR!!! Nama room tidak ditemukan di roomInstance di fungsi roomGoto\nArgumen \"roomName\": {roomName}")
@@ -185,7 +213,7 @@ def createInstance(layerName , instanceName , instanceObject):
         print(f"ERROR!!! Nama layer tidak ditemukan di variabel layers di fungsi room.createInstance\nArgumen \"layerName\": {layerName}\nArgumen \"instanceObject\": {instanceObject}")
 
 
-
+#V Fungsi ini digunakan untuk mencari instansi pertama dengan nama tertentu di dalam layer
 def findFirstInstance(layerName , instanceObjectName , roomName = currentRoomName):
     if (roomName in roomInstances):
         roomInstance = roomInstances[roomName]
@@ -209,13 +237,34 @@ def findFirstInstance(layerName , instanceObjectName , roomName = currentRoomNam
 
 
 
-# Mengembalikan surface yang sedang digunakan oleh engine (mengembalikan surface untuk GUI atau surface untuk dunia game)
+#V Mengembalikan surface yang sedang digunakan oleh engine (mengembalikan surface untuk GUI atau surface untuk dunia game)
 def getCurrentUsedSurface():
     if (onGuiLoop): return aplicationSurface
     else:           return currentRoom.cameraSurface
     
 
 
+#V Fungsi untuk menggambar permukaan tertentu ke permukaan yang sedang digunakan oleh engine (permukaan untuk GUI atau permukaan untuk dunia game)
+def surfaceDraw(surfaceToDraw , x = 0 , y = 0 , surfaceTarget = None):
+    if (surfaceTarget is not None):
+        if (surfaceTarget == constants["surface"]["applicationSurface"])or(surfaceTarget == aplicationSurface):
+            aplicationSurface.blit(surfaceToDraw , (x, y))
+
+        elif (surfaceTarget == constants["surface"]["cameraSurface"])or(surfaceTarget == currentRoom.cameraSurface):
+            currentRoom.cameraSurface.blit(surfaceToDraw , (x - currentRoom.cameraX, y - currentRoom.cameraY))
+
+        elif (isinstance(surfaceTarget , pygame.surface.Surface)):
+            surfaceTarget.blit(surfaceToDraw , (x, y))
+
+        else:
+            print(f"ERROR!!! Argumen \"surfaceTarget\" SALAH DI FUNGSI BERNAMA \"surfaceDraw\"\nInfo Argumen: {surfaceTarget}")
+            return
+
+    else:
+        if (onGuiLoop):
+            aplicationSurface.blit(surfaceToDraw , (x, y))
+        else:
+            currentRoom.cameraSurface.blit(surfaceToDraw , (x - currentRoom.cameraX, y - currentRoom.cameraY))
 
 
 
@@ -223,6 +272,10 @@ def getCurrentUsedSurface():
 
 
 
+#V fungsi untuk mengatur warna yang akan digunakan untuk menggambar
+def drawSetColour(colour):
+    global currentDrawColour
+    currentDrawColour = colour
 
 
 #V Fungsi untuk mengatur font yang akan digunakan untuk menggambar text dengan fungsi bernama drawText()
@@ -237,7 +290,9 @@ def drawSetFont(_fontAsset):
 
 
 # Fungsi untuk menggambar persegi dengan koordinat rect.
-def drawRect(X1 , Y1 , X2 , Y2 , colour = (225,225,225)):
+def drawRect(X1 , Y1 , X2 , Y2 , colour = None):
+    if colour is None:
+        colour = currentDrawColour
     pygame.draw.rect(getCurrentUsedSurface() , colour , (X1 , Y1 , X2 , Y2))
 
 
@@ -260,27 +315,55 @@ def drawSprite(_spriteAsset , x , y , scaleX = 1 , scaleY = 1 , rotation = 0 , s
     
 
    
+
+   
+# 2. Terapkan Skala (Scaling) TERLEBIH DAHULU sebelum rotasi
     if scaleX != 1 or scaleY != 1:
         newWidth = int(imageSurface.get_width() * scaleX)
         newHeight = int(imageSurface.get_height() * scaleY)
         imageSurface = pygame.transform.scale(imageSurface, (newWidth, newHeight))
 
+    # 3. Terapkan Rotasi (Hanya jika nilai rotation bukan 0 untuk menghemat performa CPU)
     if rotation != 0:
+        # Tentukan posisi pivot di layar. 
+        # Karena kita sudah mengubah skala di atas, titik rotasi (offset) juga dikalikan skala
+        pivot_x = x + (_spriteAsset.xRotationPoint * scaleX)
+        pivot_y = y + (_spriteAsset.yRotationPoint * scaleY)
+        pivot_pos = pygame.math.Vector2(pivot_x, pivot_y)
+
+        # Dapatkan Rect dari gambar (yang ukurannya sudah diskala)
+        original_rect = imageSurface.get_rect(topleft=(x, y))
+
+        # Hitung jarak (offset) dari titik tengah ke titik pivot
+        offset = pivot_pos - original_rect.center
+
+        # Putar gambar dan timpa variabel imageSurface
         imageSurface = pygame.transform.rotate(imageSurface, rotation)
 
-    if currentRoom is not None:
-        if onGuiLoop:
-            aplicationSurface.blit(imageSurface , (x , y))
-        else:
-            currentRoom.cameraSurface.blit(imageSurface , (x - currentRoom.cameraX , y - currentRoom.cameraY))
+        # Putar vektor offset ke arah yang berlawanan
+        rotated_offset = offset.rotate(-rotation)
+
+        # Hitung posisi koordinat yang baru agar pivot tidak bergeser
+        new_center = pivot_pos - rotated_offset
+        rotated_rect = imageSurface.get_rect(center=(round(new_center.x), round(new_center.y)))
+
+        # Update nilai x dan y untuk proses blit di bawah
+        x = rotated_rect.x
+        y = rotated_rect.y
+
+    # 4. Gambar (Blit) ke layar
+    surfaceDraw(imageSurface , x , y)
 
 
 
 
  
-def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = (255 , 255 , 255)):
+def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = None):
     global currentDrawFontAsset
     
+    if color is None:
+        color = currentDrawColour
+
     textSurface = currentDrawFontAsset.font.render(str(string), True, color)
 
     if xScale != 1 or yScale != 1:
@@ -291,11 +374,7 @@ def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = (
     if rotation != 0:
         textSurface = pygame.transform.rotate(textSurface, rotation)
 
-    if currentRoom is not None:
-        if onGuiLoop:
-            aplicationSurface.blit(textSurface , (x , y))
-        else:
-            currentRoom.cameraSurface.blit(textSurface , (x - currentRoom.cameraX , y - currentRoom.cameraY))
+    surfaceDraw(textSurface, x, y)
 #========================
 
 
@@ -353,8 +432,10 @@ class room:
 
 #V Class spriteAsset ini digunakan untuk menyimpan gambar yang akan dapat digambar di layar tanpa bergantung pada class instance.
 class spriteAsset:
-    def __init__(self , pygameSurfaceOrList):
+    def __init__(self , pygameSurfaceOrList , xRotationPoint = 0 , yRotationPoint = 0):
         self.surface = None
+        self.xRotationPoint = xRotationPoint
+        self.yRotationPoint = yRotationPoint
 
         if (isinstance(pygameSurfaceOrList , pygame.surface.Surface))or(isinstance(pygameSurfaceOrList , list)):
             self.surface = pygameSurfaceOrList
@@ -560,6 +641,29 @@ drawSetFont(fontAsset("Arial" , 12))
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
+
+
+
+
+
+
 #========================
 # INISIALISASI ASET MENTAH (Cara cepat)
 #========================
@@ -579,33 +683,12 @@ Assets = {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 #========================
-# INISIALISASI RUANGAN
+# INISIALISASI RUANGAN (1)
 #========================
-#V Inisialisasi semua ruangan
 roomInstances["roomInit"] = room(1000 , 1000)
 roomInstances["room2"]    = room(1000 , 1000)
 #========================
-
-
-
-
-
-
-
-
-
 
 
 
@@ -628,23 +711,11 @@ def control():
         if pygame.key.get_pressed()[pygame.K_a]: player.x -= 5
         if pygame.key.get_pressed()[pygame.K_s]: player.y += 5
         if pygame.key.get_pressed()[pygame.K_w]: player.y -= 5
-        print("Whoo!!")
 
     if pygame.key.get_pressed()[pygame.K_2]: roomGoto("room2")
     if pygame.key.get_pressed()[pygame.K_1]: roomGoto("roomInit")
-   
+    if pygame.key.get_pressed()[pygame.K_r]: player.rotation += 1
 #========================
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -653,7 +724,7 @@ def control():
 #========================
 # INISIALISASI INSTANSI, DAN FUNGSI / METHOD UNTUK EVENT INSTANSI.
 #========================
-
+#> Inisialisasi blueprint "roomInit"
 roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
     instances = {
             "instanceTest" : instance(Assets["spr_heart"], 200, 200, 4, 4, eventDefinition = {
@@ -661,17 +732,38 @@ roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
             })
     }
 ))
+#<
 
 
 
-#V Ruangan yang pertama kali dimasuki saat game dimulai.
-roomGoto("roomInit")
+#> Inisialisasi blueprint "room2"
+roomAddBlueprint("room2", "instancesLayer", instanceLayer(
+    instances = {
+            "instanceTest" : instance(Assets["spr_heart"], 400, 400, 4, 4, eventDefinition = {
+                "step": control,
+            })
+    }
+))
+#<
 #========================
 
 
 
 
- 
+
+#========================
+# INISIALISASI RUANGAN (2)
+#========================
+#V Ruangan yang pertama kali dimasuki saat game dimulai.
+roomGoto("roomInit")
+#========================
+
+
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
+#===========================================================================================================
 
 
 
@@ -712,7 +804,7 @@ while isRunning:
 
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
     if (DEBUGUI):
-        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} WIDTH:{currentRoom.cameraWidth} HEIGHT:{currentRoom.cameraHeight}", 20 , 20 , 2 , 2))
+        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}", 20 , 20 , 2 , 2.3))
     
     #V Menambahkan fungsi untuk menggambar permukaan kamera ke permukaan aplikasi, dengan ukuran yang disesuaikan dengan ukuran layar.
     scaledCamera = pygame.transform.scale(currentRoom.cameraSurface, (screenWidth, screenHeight))
