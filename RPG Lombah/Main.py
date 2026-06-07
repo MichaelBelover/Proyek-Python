@@ -105,11 +105,12 @@ def roomGoto(roomName):
     currentRoomName = roomName
     
     if (roomName in roomInstances):
-        roomInstance = roomInstances[roomName]
+        ## LANJUTKAN NNTI!
+        roomInstance = room(roomInstances[roomName].roomWidth , roomInstances[roomName].roomHeight) #< Membuat instansi baru berdasarkan ukuran ruangan yang sudah dibuat sebelumnya di variabel roomInstances.
         if (isinstance(roomInstance , room)):
             currentRoom = roomInstance #< Mengganti variabel yang menjelaskan instansi Room saat ini yang dimasuki.
             layers.clear()             #< Membersihkan objek di room sebelumnya di memori
-
+            
             #V Mengonversi blueprint layer menjadi layer asli yang akan digunakan di dalam game, dan menyimpan hasilnya di variabel "layers".
             for layerName in roomInstance.blueprintLayers:
                 blueprintLayer = roomInstance.blueprintLayers[layerName]
@@ -122,16 +123,15 @@ def roomGoto(roomName):
                     layers[layerName] = instanceLayer(blueprintLayer.instances, blueprintLayer.depth)
 
 
+
+
                 #V Jika blueprint layer bukan berupa instansi tidak termasuk daftar layer, maka akan muncul pesan error.
                 else:
                     print(f"FATAL ERROR!!! Di variabel blueprintLayers di class room terdapat nilai selain instansi class backgroundLayer atau instanceLayer!!\nNilai: {blueprintLayer}")
                     return
-
-
         else:
             print(f"FATAL ERROR!!! Di variabel roomInstances terdapat nilai selain instansi class room!!\nNilai: {roomInstance}")
             return
-        
     else:
         print(f"ERROR!!! Nama room tidak ditemukan di roomInstance di fungsi roomGoto\nArgumen \"roomName\": {roomName}")
         return
@@ -326,10 +326,7 @@ class room:
         self.roomHeight = roomHeight
 
         # LAYER HANYA BLUEPRINT SAJA (Akan dikonversi sebagai objek asli saat room dimasuki)
-        self.blueprintLayers = {
-            instanceLayer: [],
-            backgroundLayer: [],
-        }
+        self.blueprintLayers = {}
 
         self.cameraX = 0
         self.cameraY = 0
@@ -429,6 +426,7 @@ class instance:
         self.animationPlay = False
         self.animationLoop = False
         self.animationSpeed = 0.025
+    
 
         #V INISIALISASI EVENT
         self.events = {
@@ -470,8 +468,8 @@ class instance:
 
     
     def drawSelf(self):
-        frameTotal = 1
-
+        
+        frameTotal = 1 #< Jumlah gambar yang akan digunakan untuk menggambar sprite, jika spriteAsset berupa list, maka frameTotal akan diatur sesuai dengan jumlah gambar di dalam list tersebut.
         #V Menghitung jumlah gambar yang terinstal pada spriteAsset
         if (isinstance(self.spriteAsset.surface , list)):
             frameTotal = len(self.spriteAsset.surface)
@@ -631,6 +629,9 @@ def control():
         if pygame.key.get_pressed()[pygame.K_s]: player.y += 5
         if pygame.key.get_pressed()[pygame.K_w]: player.y -= 5
         print("Whoo!!")
+
+    if pygame.key.get_pressed()[pygame.K_2]: roomGoto("room2")
+    if pygame.key.get_pressed()[pygame.K_1]: roomGoto("roomInit")
    
 #========================
 
@@ -655,7 +656,7 @@ def control():
 
 roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
     instances = {
-            "instanceTest" : instance(Assets["spr_heart"], 200, 200, 1, 1, eventDefinition = {
+            "instanceTest" : instance(Assets["spr_heart"], 200, 200, 4, 4, eventDefinition = {
                 "step": control,
             })
     }
@@ -665,7 +666,6 @@ roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
 
 #V Ruangan yang pertama kali dimasuki saat game dimulai.
 roomGoto("roomInit")
-
 #========================
 
 
@@ -693,6 +693,9 @@ while isRunning:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             isRunning = False
+
+    currentRoom.cameraSurface.fill((0, 0, 0)) # Warna hitam (atau warna background)
+    aplicationSurface.fill((0, 0, 0))
 
     #V Penanganan logika instansi dan ruangan.
     for eventName in runingEventNodes:
@@ -743,7 +746,7 @@ while isRunning:
 
                 
 
-
+    control()
 
     ##V Akhir perulangan
     pygame.display.flip()
