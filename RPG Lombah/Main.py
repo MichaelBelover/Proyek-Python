@@ -443,6 +443,15 @@ class spriteAsset:
             self.surface = pygameSurfaceOrList
         else:
             print("GAGAL MEMBUAT SURFACE DI CLASS \"SpriteAsset\"")
+        
+    def hasAnimation(self):
+        return (isinstance(self.surface , list))
+    
+    def getSurface(self , index = 0):
+        if (self.hasAnimation): return self.surface[index]
+        else: return self.surface
+
+
 
 #V Class fontAsset ini digunakan untuk menggambar teks.
 class fontAsset:
@@ -461,6 +470,8 @@ class fontAsset:
 
 
 
+
+
 class backgroundLayer():
     def __init__(self , spriteAsset , horizontalTile = False , verticalTile = False , tileRotation = 0 , strecth = False , colour = (255,255,255)):
         self.spriteAsset    = spriteAsset
@@ -469,13 +480,44 @@ class backgroundLayer():
         self.verticalTile   = verticalTile
         self.strecth        = strecth
         self.colour         = colour
+        self.isActive       = True
+
+        self.animationCurrentFrame = 0
+        self.animationPlay = False
+        self.animationLoop = False
+        self.animationSpeed = 0.025
+
 
     def draw(self):
-        if (not isinstance(self.spriteAsset , spriteAsset)or(not isinstance(self.spriteAsset , list))):
-            print("ERROR!! variabel \"self.spriteAsset\" SALAH! di fungsi draw di class backgroundLayer")
+        if (not isinstance(self.spriteAsset , spriteAsset)):
+            print(f"ERROR!! variabel \"self.spriteAsset\" SALAH! di fungsi draw di class backgroundLayer\nArg yang diberikan:{self.spriteAsset}")
+            return 
         
-        #V Variabel 
-        imageSurface = self.spriteAsset.surface
+        frameTotal = 1 #< Jumlah gambar yang akan digunakan untuk menggambar sprite, jika spriteAsset berupa list, maka frameTotal akan diatur sesuai dengan jumlah gambar di dalam list tersebut.
+        if (self.animationPlay):
+            #V Logika animasi
+            #V Menghitung jumlah gambar yang terinstal pada spriteAsset
+            if (isinstance(self.spriteAsset.surface , list)):
+                frameTotal = len(self.spriteAsset.surface)
+
+            #V Jika jumlah gambar melebihi 1
+            if (self.animationPlay and frameTotal > 1):
+                self.animationCurrentFrame += self.animationSpeed
+
+            
+            #V Mencegah frame melebihi batas indeks list
+                if self.animationCurrentFrame >= frameTotal:
+                    if self.animationLoop:
+                        self.animationCurrentFrame = 0 #< Kembali ke frame awal
+                    else:
+                        self.animationCurrentFramee = frameTotal - 1 #< Berhenti di frame terakhir
+
+            #V Mencegah error jika nilai frameTotal tiba-tiba berubah
+            frameTotal = int(self.animationCurrentFrame) % max(1, frameTotal)
+        
+        imageSurface = self.spriteAsset.getSurface(frameTotal)
+
+
 
         #V Jika gambar diperintahkan melebar memenuhi room
         if (self.strecth):
@@ -485,16 +527,29 @@ class backgroundLayer():
 
             # 2. Hitung ScaleX dan ScaleY (Target / Asli)
             # Menggunakan ternary operator untuk mencegah pembagian dengan nol (ZeroDivisionError)
-            scaleX = currentRoom.roomWidth / original_width if original_width > 0 else 1
-            scaleY = currentRoom.roomHeight / original_height if original_height > 0 else 1
+            scaleX = currentRoom.roomWidth / original_width if (original_width) > 0 else 1
+            scaleY = currentRoom.roomHeight / original_height if (original_height) > 0 else 1
 
             # 3. Panggil fungsi drawSprite
             # KOREKSI 2: drawSprite meminta argumen pertama berupa object 'spriteAsset', bukan 'imageSurface'.
-            drawSprite(self.spriteAsset, 0, 0, scaleX, scaleY)
-
+            drawSprite(self.spriteAsset, 0,0 , scaleX,scaleY , 0 , frameTotal)
+            
 
         #V Jika gambar diperintahkan sebagai tile memenuhi room
         elif (self.horizontalTile)or(self.verticalTile):
+            original_Width = imageSurface.get_width()
+            original_Height = imageSurface.get_height()
+
+            xTileCount = currentRoom.roomWidth
+            yTileCount = currentRoom.roomHeight
+            
+            drawCurrentX = 0
+            drawCurrentY = 0
+
+            if (self.horizontalTile):
+                for i in range(xTileCount):
+                    drawSprite(self.spriteAsset , drawCurrentX,drawCurrentY , 1,1 , 0 , frameTotal)
+                    drawCurrentX += 1
             
 
 
@@ -537,7 +592,7 @@ class instance:
         self.draw = True
         self.update = True
 
-        self.currentSprite = 0
+        self.animationCurrentFrame = 0
         self.animationPlay = False
         self.animationLoop = False
         self.animationSpeed = 0.025
@@ -591,18 +646,18 @@ class instance:
 
         #V Jika jumlah gambar melebihi 1
         if (self.animationPlay and frameTotal > 1):
-            self.currentSprite += self.animationSpeed
+            self.animationCurrentFrame += self.animationSpeed
 
 
         #V Mencegah frame melebihi batas indeks list
-            if self.currentSprite >= frameTotal:
+            if self.animationCurrentFrame >= frameTotal:
                 if self.animationLoop:
-                    self.currentSprite = 0 #< Kembali ke frame awal
+                    self.animationCurrentFrame = 0 #< Kembali ke frame awal
                 else:
-                    self.currentSprite = frameTotal - 1 #< Berhenti di frame terakhir
+                    self.animationCurrentFramee = frameTotal - 1 #< Berhenti di frame terakhir
 
         #V Mencegah error jika nilai frameTotal tiba-tiba berubah
-        frameTotal = int(self.currentSprite) % max(1, frameTotal)
+        frameTotal = int(self.animationCurrentFrame) % max(1, frameTotal)
 
 
         drawSprite(self.spriteAsset,
@@ -842,6 +897,8 @@ while isRunning:
     runingEventNodes["beginDrawGUI"].append( lambda: aplicationSurface.blit(pygame.transform.scale(currentRoom.cameraSurface, (screenWidth, screenHeight)), (0, 0)) )
     runingEventNodes["beginDrawGUI"].append( lambda: globals().update({"onGuiLoop": True}) )
 
+    
+
 
     
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
@@ -853,21 +910,35 @@ while isRunning:
     aplicationSurface.blit(scaledCamera, (0, 0))
 
 
-    instanceLayers = {layerName: layer for layerName, layer in layers.items() if isinstance(layer, instanceLayer)} #< Mengambil semua instansi class instanceLayer di dalam variabel layers.
-    for layerName, layer in instanceLayers.items():
-
-        for instanceObjectName , instanceObject in layer.instances.items():
-            if (instanceObjectName not in layer.instances or        #< Cek jika instansi masih terdaftar atau sudah dihapus di event sebelumnya.
-               not isinstance(instanceObject , instance)): continue #< Cek jika objek saat ini berupa class instance atau tidak.
 
 
-            #V Memanggil fungsi forceUpdate untuk setiap instansi, agar variabel posisi sebelumnya dapat digunakan untuk logika seperti pergerakan dan tabrakan.
-            instanceObject.forceUpdate() 
+    #V Mengiterasikan semua instansi layer yang tercipta.
+    for layerName, layer in layers.items():
 
-            #V Menambahkan semua fungsi / method yang ada di setiap event instansi ke dalam variabel runingEventNodes, agar dapat dijalankan secara berurutan di step selanjutnya.
-            for eventName , eventFunction in instanceObject.events.items():
-                if callable(eventFunction):
-                    runingEventNodes[eventName].append(eventFunction)
+        #V Jika tipe layer adalah instanceLayer
+        if (isinstance(layer , instanceLayer)):
+            #V Mengiterasikan semua objek yang ada di layer.
+            for instanceName , instanceObject in layer.instances.items():
+                #V Pengecekan
+                #V Cek jika instansi masih terdaftar atau sudah dihapus di event sebelumnya. Cek jika objek saat ini berupa class instance atau tidak.
+                if (instanceName not in layer.instances)or(not isinstance(instanceObject , instance)):
+                    print(f"ERROR!!! Salah satu nilai dari instanceLayer Salah! Name instansi:{instanceName}")
+                    continue
+
+                #V Memanggil fungsi forceUpdate untuk setiap instansi, agar variabel posisi sebelumnya dapat digunakan untuk logika seperti pergerakan dan tabrakan.
+                instanceObject.forceUpdate() 
+
+                #V Menambahkan semua fungsi / method yang ada di setiap event instansi ke dalam variabel runingEventNodes, agar dapat dijalankan secara berurutan di step selanjutnya.
+                for eventName , eventFunction in instanceObject.events.items():
+                    if callable(eventFunction):
+                        runingEventNodes[eventName].append(eventFunction)
+
+        #V Jika tipe layer adalah backgroundLayer
+        elif (isinstance(layer , backgroundLayer)):
+            if (layer.isActive):
+                layer.draw()
+
+
 
             
 
@@ -880,7 +951,7 @@ while isRunning:
 
                 
 
-    control()
+
 
     ##V Akhir perulangan
     pygame.display.flip()
