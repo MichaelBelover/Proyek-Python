@@ -31,7 +31,7 @@ roomInstances = {} #< Variabel sekumpulan ruangan.
 
 globalVariables = {} #< Variabel yang aman untuk diakses semua event.
 
-constants = { #< Konstanta yang aman untuk diakses semua event, tetapi tidak boleh diubah nilainya.
+consts = { #< Konstanta yang aman untuk diakses semua event, tetapi tidak boleh diubah nilainya.
     "surface" : {
         "applicationSurface" : 0,
         "cameraSurface" : 1,
@@ -72,6 +72,7 @@ layers = {}        #< Hasil dari konversi blueprintLayer
 
 currentFPS = 0
 
+timeSpawns = {}
 
 onGuiLoop = False #< Apakah di event saat ini sedang berada di fase digambarnya GUI.
 
@@ -137,7 +138,9 @@ def roomGoto(roomName):
         
         # 1. Dictionary untuk MENYARING HANYA instansi yang persisten berdasarkan nama layernya
         # Format: { "NamaLayer": { "NamaInstansi": ObjekInstansi } }
-        persistData = {} 
+        persistInstancesData = {} 
+        persistDepthData = {}
+        
 
         if (isinstance(roomInstance, room)):
             currentRoom = roomInstance 
@@ -149,11 +152,12 @@ def roomGoto(roomName):
                         if isinstance(instObj, instance) and instObj.roomPersist:
                             
                             # Buat dictionary layer jika belum ada di persistData
-                            if layerName not in persistData:
-                                persistData[layerName] = {}
+                            if layerName not in persistInstancesData:
+                                persistInstancesData[layerName] = {}
                             
                             # Simpan HANYA instansi yang persisten
-                            persistData[layerName][instName] = instObj
+                            persistInstancesData[layerName][instName] = instObj
+                    persistDepthData[layerName] = layerObj.depth        
 
             # 3. Bersihkan memori layer room lama
             layers.clear() 
@@ -173,22 +177,21 @@ def roomGoto(roomName):
                     return
 
             # 5. SUNTIKKAN (Inject) instansi persisten ke layer room baru
-            for layerName, persistInstancesDict in persistData.items():
+            for layerName, persistInstancesDict in persistInstancesData.items():
                 # Jika layer dengan nama yang sama ada di room baru, gabungkan instansinya
                 if layerName in layers and isinstance(layers[layerName], instanceLayer):
                     layers[layerName].instances.update(persistInstancesDict)
                 else:
                     # Jika room baru tidak memiliki layer tersebut, buat layer baru khusus 
                     # untuk menampung objek persisten ini (Depth bisa disesuaikan/diambil dari data lama)
-                    layers[layerName] = instanceLayer(persistInstancesDict, layers[layerName].depth)
-
-            
+                    layers[layerName] = instanceLayer(persistInstancesDict, persistDepthData[layerName])
                     
+
         else:
-            print("FATAL ERROR!!! Gagal membuat instansi class room!!")
+            print("FATAL ERROR!!! Gagal membuat instansi class room!!  di fungsi roomGoto!")
             return
     else:
-        print(f"ERROR!!! Nama room tidak ditemukan: {roomName}")
+        print(f"ERROR!!! Nama room tidak ditemukan: {roomName} di fungsi roomGoto!")
         return
     
     
@@ -240,8 +243,14 @@ def createInstance(layerName , instanceName , instanceObject):
         print(f"ERROR!!! Nama layer tidak ditemukan di variabel layers di fungsi room.createInstance\nArgumen \"layerName\": {layerName}\nArgumen \"instanceObject\": {instanceObject}")
 
 
+
+
 #V Fungsi ini digunakan untuk mencari instansi pertama dengan nama tertentu di dalam layer
-def findFirstInstance(layerName , instanceObjectName , roomName = currentRoomName):
+def findFirstInstance(layerName , instanceObjectName , roomName = None):
+    if (roomName is None):
+        roomName = currentRoomName
+
+
     if (roomName in roomInstances):
         roomInstance = roomInstances[roomName]
 
@@ -274,10 +283,10 @@ def getCurrentUsedSurface():
 #V Fungsi untuk menggambar permukaan tertentu ke permukaan yang sedang digunakan oleh engine (permukaan untuk GUI atau permukaan untuk dunia game)
 def surfaceDraw(surfaceToDraw , x = 0 , y = 0 , surfaceTarget = None):
     if (surfaceTarget is not None):
-        if (surfaceTarget == constants["surface"]["applicationSurface"])or(surfaceTarget == aplicationSurface):
+        if (surfaceTarget == consts["surface"]["applicationSurface"])or(surfaceTarget == aplicationSurface):
             aplicationSurface.blit(surfaceToDraw , (x, y))
 
-        elif (surfaceTarget == constants["surface"]["cameraSurface"])or(surfaceTarget == currentRoom.cameraSurface):
+        elif (surfaceTarget == consts["surface"]["cameraSurface"])or(surfaceTarget == currentRoom.cameraSurface):
             currentRoom.cameraSurface.blit(surfaceToDraw , (x - currentRoom.cameraX, y - currentRoom.cameraY))
 
         elif (isinstance(surfaceTarget , pygame.surface.Surface)):
@@ -394,7 +403,7 @@ def drawSprite(_spriteAsset , x , y , scaleX = 1 , scaleY = 1 , rotation = 0 , s
 
 
 
- 
+ # fungsi untuk menggambar teks di dunia atau di GUI, namanya aja drawText
 def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = None , alpha = 255):
     global currentDrawFontAsset
     
@@ -487,8 +496,10 @@ class spriteAsset:
     def getSurface(self , index = 0):
         if (isinstance(self.surface , list)):
             return self.surface[index]
-        else:
+        elif (isinstance(self.surface , pygame.Surface)):
             return self.surface
+        else:
+            return None
 
 
 
@@ -535,7 +546,7 @@ class backgroundLayer():
         originalDrawColour = currentDrawColour
         drawSetColour(self.colour)
 
-        iterationCount = 0
+        
         
         frameTotal = 1 #< Jumlah gambar yang akan digunakan untuk menggambar sprite, jika spriteAsset berupa list, maka frameTotal akan diatur sesuai dengan jumlah gambar di dalam list tersebut.
         if (self.animationPlay):
@@ -639,6 +650,36 @@ class instanceLayer():
 
 
 
+#V Klass jika cooldown (callDelay) mencapai 0, fungsi (functionToCall) akan dijalankan.
+class timeSpawn(): # tambahkan fitur maxloop, maximal perulangan pemanggilan
+    def __init__(self , functionToCall , callDelay , callLoop = False):
+        self.functionToCall = functionToCall
+        self.callDelay = callDelay
+        self.callLoop = callLoop
+
+        self.UID = f"tsid{uuid.uuid4()}"
+        self.currentDelayTime = 0
+
+        self.isPaused = False
+
+
+    #V Memulai eksekusi
+    def execute(self):
+        self.isPaused = False
+        self.currentDelayTime = self.callDelay
+        timeSpawns[self.UID] = self
+
+    #V Membatalkan eksekusi
+    def cancel(self):
+        timeSpawns.__delitem__(self.UID)
+
+
+
+def tsrespone():
+    createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));
+ts = timeSpawn(tsrespone , 1 , True)
+ts.execute()
+
 
 
 
@@ -649,7 +690,7 @@ class instance:
     def __init__(self , _spriteAsset , x , y , xScale , yScale , eventDefinition = {} , optionalSettings = {}):
         #V INISIALISASI VARIABEL
         self.spriteAsset = _spriteAsset
-
+    
         self.previousX = x
         self.previousY = y
         self.x = x
@@ -663,14 +704,13 @@ class instance:
         self.visible = True
 
         self.roomPersist = False
-        
-        self.draw = True
-        self.update = True
 
         self.animationCurrentFrame = 0
         self.animationPlay = True
         self.animationLoop = True
         self.animationSpeed = 0.025
+
+        self.isDestroySoon = False #< Apakah di step berikutnya, instansi ini akan dihancurkan?
     
 
         #V INISIALISASI EVENT
@@ -733,13 +773,14 @@ class instance:
         #V Mencegah error jika nilai frameTotal tiba-tiba berubah
         frameTotal = int(self.animationCurrentFrame) % max(1, frameTotal)
 
-        originalDrawColour = currentDrawColour
-        drawSetColour(self.blend)
-        drawSprite(self.spriteAsset,
-                    self.x, self.y,
-                    self.xScale  , self.yScale   , self.rotation,
-                    frameTotal)
-        drawSetColour(originalDrawColour)
+        if (self.visible):
+            originalDrawColour = currentDrawColour
+            drawSetColour(self.blend)
+            drawSprite(self.spriteAsset,
+                        self.x, self.y,
+                        self.xScale  , self.yScale   , self.rotation,
+                        frameTotal)
+            drawSetColour(originalDrawColour)
 
 
             
@@ -752,7 +793,8 @@ class instance:
         self.previousY = self.y
 
 
-
+    def destroy(self):
+        self.isDestroySoon = True
 
 
     def isColliding(self , instance2):
@@ -767,7 +809,6 @@ class instance:
 
 currentRoom = room(1 , 1)     
  #========================   
-
 
 
 
@@ -830,21 +871,34 @@ drawSetFont(fontAsset("Arial" , 12))
 
 
 #========================
-# INISIALISASI ASET MENTAH (Cara cepat)
+# INISIALISASI ASET MENTAH
 #========================
 #V Sekumpulan aset mentah yang akan digunakan untuk game, alih-alih menyatukan dengan variabel luar lain.
 rawAssets = {
     "gameIcon" : pygame.image.load(os.path.join("assets" , "gameIcon2.png")),
     "grassTile" : pygame.image.load(os.path.join("assets" , "grassTile.jpg")),
     "emptySpr" : pygame.image.load(os.path.join("assets" , "Empty.png")),
+
+    "BGMvoidStar" : os.path.join("assets" , "VOID STAR.mp3"),
+
+    "SEfloweySpeakThatsAWonderfulIdea" : os.path.join("assets" , "floweySpeakThatsAWonderfulIdea.mp3"),
+    "SEomegaFloweyFightIntro" : os.path.join("assets" , "omegaFloweyFightIntro.mp3"),
+    "SEomegaFloweyLaugh" : os.path.join("assets" , "omegaFloweyLaugh.mp3"),
+
 }
 
 
 #V Sekumpulan aset yang sudah dibungkus.
 Assets = {
-    "spr_heart" : spriteAsset([rawAssets["gameIcon"] , rawAssets["grassTile"]]),
+    "spr_heart" : spriteAsset([rawAssets["gameIcon"]], 10,10),
     "spr_grassTile" : spriteAsset(rawAssets["grassTile"]),
     "spr_empty" : spriteAsset(rawAssets["emptySpr"]),
+
+    "snd_VOIDSTAR" : pygame.Sound(rawAssets["BGMvoidStar"]),
+    "snd_thatsAWonderfulIdea" : pygame.Sound(rawAssets["SEfloweySpeakThatsAWonderfulIdea"]),
+    "snd_omegaFloweyFightIntro" : pygame.Sound(rawAssets["SEomegaFloweyFightIntro"]),
+    "snd_omegaFloweyLaugh" : pygame.Sound(rawAssets["SEomegaFloweyLaugh"]),
+
 }
 #========================
 
@@ -855,9 +909,10 @@ Assets = {
 #========================
 # INISIALISASI RUANGAN (1)
 #========================
-roomInstances["roomInit"] = room(1000 , 1000)
+roomInstances["starterPlace"] = room(1000 , 1000)
 
-roomInstances["room2"] = room(2000 , 2000)
+roomInstances["room2"] = room(screenWidth , screenHeight)
+
 #========================
 
 
@@ -867,24 +922,7 @@ roomInstances["room2"] = room(2000 , 2000)
 #========================
 # FUNGSI / METHOD GLOBAL KHUSUS UNTUK EVENT INSTANSI.
 #========================
-def control():
-    if pygame.key.get_pressed()[pygame.K_RIGHT]: currentRoom.cameraX += 5
-    if pygame.key.get_pressed()[pygame.K_LEFT]: currentRoom.cameraX -= 5
-    if pygame.key.get_pressed()[pygame.K_DOWN]: currentRoom.cameraY += 5
-    if pygame.key.get_pressed()[pygame.K_UP]: currentRoom.cameraY -= 5
 
-    # Cara aman mengakses instance di dalam arsitektur layer-mu:
-    if "instancesLayer" in layers and "instanceTest" in layers["instancesLayer"].instances:
-        player = layers["instancesLayer"].instances["instanceTest"]
-        
-        if pygame.key.get_pressed()[pygame.K_d]: player.x += 5
-        if pygame.key.get_pressed()[pygame.K_a]: player.x -= 5
-        if pygame.key.get_pressed()[pygame.K_s]: player.y += 5
-        if pygame.key.get_pressed()[pygame.K_w]: player.y -= 5
-
-    if pygame.key.get_pressed()[pygame.K_2]: roomGoto("room2")
-    if pygame.key.get_pressed()[pygame.K_1]: roomGoto("roomInit")
-    if pygame.key.get_pressed()[pygame.K_r]: player.rotation += 1
 #========================
 
 
@@ -894,12 +932,50 @@ def control():
 #========================
 # INISIALISASI INSTANSI, DAN FUNGSI / METHOD UNTUK EVENT INSTANSI.
 #========================
-#> Inisialisasi blueprint "roomInit"
-#roomAddBlueprint("roomInit", "backgroundLayer", backgroundLayer(Assets["spr_grassTile"], True,True,False))
-roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
+#> Inisialisasi blueprint "starterPlace"
+def controlerOnStep():
+    # 1. Ambil snapshot keyboard sekali saja di awal untuk efisiensi
+    keys = pygame.key.get_pressed()
+
+    # 2. Kontrol Kamera (Menggunakan variabel 'keys' yang sudah disimpan)
+    if keys[pygame.K_RIGHT]: currentRoom.cameraX += 5
+    if keys[pygame.K_LEFT]:  currentRoom.cameraX -= 5
+    if keys[pygame.K_DOWN]:  currentRoom.cameraY += 5
+    if keys[pygame.K_UP]:    currentRoom.cameraY -= 4
+
+    
+
+    if keys[pygame.K_o]:
+        currentRoom.cameraHeight -= 2
+        currentRoom.cameraWidth -= 2
+    if keys[pygame.K_i]:    
+        currentRoom.cameraHeight += 2
+        currentRoom.cameraWidth += 2
+
+    # 3. Kontrol Perpindahan Room
+    if keys[pygame.K_2]: roomGoto("room2")
+    if keys[pygame.K_1]: roomGoto("starterPlace")
+
+    # 4. Akses Aman ke Instance Player dan Kontrolnya
+    if "instancesLayer" in layers and "controler" in layers["instancesLayer"].instances:
+        player = layers["instancesLayer"].instances["controler"]
+        
+        # Pergerakan Player
+        if keys[pygame.K_d]: player.x += 5
+        if keys[pygame.K_a]: player.x -= 5
+        if keys[pygame.K_s]: player.y += 5
+        if keys[pygame.K_w]: player.y -= 5
+
+        # Rotasi dan Penghancuran (Dimasukkan ke dalam scope 'if' agar AMAN dari NameError)
+        if keys[pygame.K_r]: 
+            player.rotation += 5
+        if keys[pygame.K_DELETE]: 
+            player.destroy()
+            return
+roomAddBlueprint("starterPlace", "instancesLayer", instanceLayer(
     instances = {
-            "instanceTest" : instance(Assets["spr_heart"], 200, 200, 4, 4, eventDefinition = {
-                "step": control,
+            "controler" : instance(Assets["spr_heart"], 200, 200, 2, 2, eventDefinition = {
+                "step": controlerOnStep,
             },optionalSettings = {
                 "roomPersist": True
             })
@@ -910,10 +986,10 @@ roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
 
 
 #> Inisialisasi blueprint "room2"
-roomAddBlueprint("room2", "instancesLayer", instanceLayer(
+roomAddBlueprint("room2", "instancesLayer2", instanceLayer(
     instances = {
-            "instanceTest" : instance(Assets["spr_empty"], 400, 400, 4, 4, eventDefinition = {
-                "step": control,
+            "instanceTest" : instance(Assets["spr_grassTile"], 400, 400, 4, 4, eventDefinition = {
+                "step": controlerOnStep,
             })
     }
 ))
@@ -928,7 +1004,7 @@ roomAddBlueprint("room2", "instancesLayer", instanceLayer(
 # INISIALISASI RUANGAN (2)
 #========================
 #V Ruangan yang pertama kali dimasuki saat game dimulai.
-roomGoto("roomInit")
+roomGoto("starterPlace")
 #========================
 
 
@@ -988,7 +1064,10 @@ while isRunning:
     aplicationSurface.blit(scaledCamera, (0, 0))
 
 
-    
+
+
+    #V (Nama variabel berati nama layernya, nilainya adalah nama instansinya)
+    destroyThisInstances = {}
 
     #V Mengiterasikan semua instansi layer yang tercipta.
     for layerName, layer in layers.items():
@@ -1006,10 +1085,21 @@ while isRunning:
                 #V Memanggil fungsi forceUpdate untuk setiap instansi, agar variabel posisi sebelumnya dapat digunakan untuk logika seperti pergerakan dan tabrakan.
                 instanceObject.forceUpdate() 
 
+                #V Jika instansi diperintahkan tidak bisa menembus saat bertabrak
+                if (instanceObject.solid):
+                    for instanceName2 , instanceObject2 in layer.instances.items():
+                        if (instanceObject.isColliding(instanceObject2)):
+                            print("menyentuh!")
+
+
                 #V Menambahkan semua fungsi / method yang ada di setiap event instansi ke dalam variabel runingEventNodes, agar dapat dijalankan secara berurutan di step selanjutnya.
                 for eventName , eventFunction in instanceObject.events.items():
                     if callable(eventFunction):
                         runingEventNodes[eventName].append(eventFunction)
+
+                #V Menambahkan instansi ke antrian yang akan dihancurkan jika flag isDestroySoon bernilai True
+                if (instanceObject.isDestroySoon):
+                    destroyThisInstances[layerName] = instanceName
 
         #V Jika tipe layer adalah backgroundLayer
         elif (isinstance(layer , backgroundLayer)):
@@ -1017,8 +1107,37 @@ while isRunning:
                 runingEventNodes["beginDraw"].append(layer.draw)
 
 
+        #V Menghapus instansi yang terdaftar sebagai yang akan dihapus
+        for layerName , instanceName in destroyThisInstances.items():
+            layerTarget = layers[layerName]
+            if (isinstance(layerTarget , instanceLayer)):
+                onDestroyEvent = layerTarget.instances[instanceName].events["onDestroy"]
 
-            
+                if (callable(onDestroyEvent)):
+                    onDestroyEvent()
+
+                layerTarget.instances.__delitem__(instanceName)
+        destroyThisInstances.clear()        
+
+
+
+        for timeSpawnId , timeSpawnObject in timeSpawns.items():
+            if (isinstance(timeSpawnObject , timeSpawn)):
+
+                if (not timeSpawnObject.isPaused):
+                    timeSpawnObject.currentDelayTime -= 1
+
+                if (timeSpawnObject.currentDelayTime <= 0):
+                    timeSpawnObject.functionToCall()
+                    timeSpawnObject.currentDelayTime = 0
+
+                    if (not timeSpawnObject.callLoop):
+                        timeSpawns.__delitem__("timeSpawnId")
+                    else:
+                        timeSpawnObject.currentDelayTime = timeSpawnObject.callDelay
+
+                
+         
 
 
     #V Menjalankan semua fungsi yang sudah diurutkan di dalam variabel runingEventNodes secara berurutan.
@@ -1027,7 +1146,7 @@ while isRunning:
             if callable(eventFunction):
                 eventFunction()
 
-                
+
 
 
 
