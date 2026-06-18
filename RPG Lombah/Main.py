@@ -34,7 +34,7 @@ globalVariables = {} #< Variabel yang aman untuk diakses semua event.
 constants = { #< Konstanta yang aman untuk diakses semua event, tetapi tidak boleh diubah nilainya.
     "surface" : {
         "applicationSurface" : 0,
-        "cameraSurface" : 0,
+        "cameraSurface" : 1,
     },
     "col" : {
         "white" : (255, 255, 255),
@@ -69,6 +69,9 @@ currentRoomName  = "Undefined" #< Nama dunia/Ruangan saat ini.
 
 currentRoom = None #< Data dunia ruangan saat ini yang dipakai.
 layers = {}        #< Hasil dari konversi blueprintLayer
+
+currentFPS = 0
+
 
 onGuiLoop = False #< Apakah di event saat ini sedang berada di fase digambarnya GUI.
 
@@ -106,6 +109,7 @@ pygame.display.set_icon(rawAssets["gameIcon"])
 
 
 
+
 #========================
 # FUNGSI / METODE GLOBAL
 #========================
@@ -118,50 +122,73 @@ def roomForceUpdate():
         currentRoom.cameraSurface = pygame.Surface((max(1 , currentRoom.cameraWidth) , max(1 , currentRoom.cameraHeight)))
 
 
-
 def roomGoto(roomName):
     global currentRoom
     global previousRoomName
     global currentRoomName
 
-    #V Memperbarui informasi room/dunia
     previousRoomName = currentRoomName 
     currentRoomName = roomName
     
     if (roomName in roomInstances):
-        # 1. Ambil data cetak biru (blueprint) ruangan aslinya
         baseRoomBlueprint = roomInstances[roomName]
-        
-        # 2. Buat instansi ruangan BARU agar posisi kamera, dll di-reset
         roomInstance = room(baseRoomBlueprint.roomWidth, baseRoomBlueprint.roomHeight)
-        
-        # 3. SALIN blueprintLayers dari baseRoomBlueprint ke roomInstance yang baru.
-        # Kita menggunakan copy.deepcopy agar data di memori benar-benar digandakan, 
-        # sehingga referensi objek aslinya tetap murni dan tidak berubah.
         roomInstance.blueprintLayers = copy.deepcopy(baseRoomBlueprint.blueprintLayers)
         
-        if (isinstance(roomInstance , room)):
-            currentRoom = roomInstance #< Mengganti variabel yang menjelaskan instansi Room saat ini yang dimasuki.
-            layers.clear()             #< Membersihkan objek di room sebelumnya di memori
+        # 1. Dictionary untuk MENYARING HANYA instansi yang persisten berdasarkan nama layernya
+        # Format: { "NamaLayer": { "NamaInstansi": ObjekInstansi } }
+        persistData = {} 
+
+        if (isinstance(roomInstance, room)):
+            currentRoom = roomInstance 
+
+            # 2. Ekstrak objek persisten
+            for layerName, layerObj in layers.items():
+                if isinstance(layerObj, instanceLayer):
+                    for instName, instObj in layerObj.instances.items():
+                        if isinstance(instObj, instance) and instObj.roomPersist:
+                            
+                            # Buat dictionary layer jika belum ada di persistData
+                            if layerName not in persistData:
+                                persistData[layerName] = {}
+                            
+                            # Simpan HANYA instansi yang persisten
+                            persistData[layerName][instName] = instObj
+
+            # 3. Bersihkan memori layer room lama
+            layers.clear() 
             
-            #V Mengonversi blueprint layer menjadi layer asli yang akan digunakan di dalam game
-            for layerName in roomInstance.blueprintLayers:
-                blueprintLayer = roomInstance.blueprintLayers[layerName]
-
-                if (isinstance(blueprintLayer , backgroundLayer)):
-                    layers[layerName] = backgroundLayer(blueprintLayer.spriteAsset , blueprintLayer.horizontalTile , blueprintLayer.verticalTile , blueprintLayer.strecth , blueprintLayer.colour)
-
-                elif (isinstance(blueprintLayer , instanceLayer)):
+            # 4. Bangun layer baru murni dari blueprint terlebih dahulu
+            for layerName, blueprintLayer in roomInstance.blueprintLayers.items():
+                if isinstance(blueprintLayer, backgroundLayer):
+                    layers[layerName] = backgroundLayer(
+                        blueprintLayer.spriteAsset, blueprintLayer.horizontalTile, 
+                        blueprintLayer.verticalTile, blueprintLayer.strecth, blueprintLayer.colour
+                    )
+                elif isinstance(blueprintLayer, instanceLayer):
+                    # Salin instansi murni dari blueprint
                     layers[layerName] = instanceLayer(blueprintLayer.instances, blueprintLayer.depth)
-
                 else:
-                    print(f"FATAL ERROR!!! Di variabel blueprintLayers di class room terdapat nilai selain instansi class backgroundLayer atau instanceLayer!!\nNilai: {blueprintLayer}")
+                    print(f"FATAL ERROR!!! Tipe layer tidak dikenali: {blueprintLayer}")
                     return
+
+            # 5. SUNTIKKAN (Inject) instansi persisten ke layer room baru
+            for layerName, persistInstancesDict in persistData.items():
+                # Jika layer dengan nama yang sama ada di room baru, gabungkan instansinya
+                if layerName in layers and isinstance(layers[layerName], instanceLayer):
+                    layers[layerName].instances.update(persistInstancesDict)
+                else:
+                    # Jika room baru tidak memiliki layer tersebut, buat layer baru khusus 
+                    # untuk menampung objek persisten ini (Depth bisa disesuaikan/diambil dari data lama)
+                    layers[layerName] = instanceLayer(persistInstancesDict, layers[layerName].depth)
+
+            
+                    
         else:
-            print(f"FATAL ERROR!!! Gagal membuat instansi class room!!")
+            print("FATAL ERROR!!! Gagal membuat instansi class room!!")
             return
     else:
-        print(f"ERROR!!! Nama room tidak ditemukan di roomInstance di fungsi roomGoto\nArgumen \"roomName\": {roomName}")
+        print(f"ERROR!!! Nama room tidak ditemukan: {roomName}")
         return
     
     
@@ -171,7 +198,7 @@ def roomGoto(roomName):
 
     
 
-# Fungsi ini digunakan untuk menginisialisasi layer blueprint di dalam ruangan, agar dapat digunakan untuk menyimpan data layer yang akan dikonversi menjadi layer asli saat ruangan dimasuki. Blueprint layer ini tidak akan memakan banyak memori karena hanya menyimpan data yang diperlukan untuk membuat layer asli, dan tidak menyimpan data objek instansi yang ada di dalam layer tersebut.
+
 # blueprint adalah suatu resep layer yang akan diciptakan saat ruangan/dunia dimasuki.
 # Disarankan fungsi kaya gini harus dijalankan sebelum game berjalan.
 def roomAddBlueprint(roomName, layerName, layerInstance):
@@ -289,6 +316,8 @@ def drawSetFont(_fontAsset):
 
 
 
+
+
 # Fungsi untuk menggambar persegi dengan koordinat rect.
 def drawRect(X1 , Y1 , X2 , Y2 , colour = None):
     if colour is None:
@@ -297,8 +326,11 @@ def drawRect(X1 , Y1 , X2 , Y2 , colour = None):
 
 
 
+
+
+
 #V Fungsi untuk menggambar sprite ke dunia game atau ke GUI
-def drawSprite(_spriteAsset , x , y , scaleX = 1 , scaleY = 1 , rotation = 0 , subImage = 0):
+def drawSprite(_spriteAsset , x , y , scaleX = 1 , scaleY = 1 , rotation = 0 , subImage = 0 , alpha = 255):
     imageSurface = None
 
     if (isinstance(_spriteAsset , spriteAsset)):
@@ -350,22 +382,27 @@ def drawSprite(_spriteAsset , x , y , scaleX = 1 , scaleY = 1 , rotation = 0 , s
         # Update nilai x dan y untuk proses blit di bawah
         x = rotated_rect.x
         y = rotated_rect.y
-
+        
+    #V Mewarnai surface
+    coloredImageSurface = imageSurface.copy()
+    coloredImageSurface.fill(currentDrawColour , special_flags=pygame.BLEND_RGBA_MULT)
+    coloredImageSurface.set_alpha(alpha)
+    
     # 4. Gambar (Blit) ke layar
-    surfaceDraw(imageSurface , x , y)
+    surfaceDraw(coloredImageSurface , x , y)
 
 
 
 
  
-def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = None):
+def drawText(string , x , y , xScale = 1 , yScale = 1 , rotation = 0 , color = None , alpha = 255):
     global currentDrawFontAsset
     
     if color is None:
         color = currentDrawColour
 
     textSurface = currentDrawFontAsset.font.render(str(string), True, color)
-
+    textSurface.set_alpha(alpha)
     if xScale != 1 or yScale != 1:
         newWidth = int(textSurface.get_width() * xScale)
         newHeight = int(textSurface.get_height() * yScale)
@@ -448,8 +485,10 @@ class spriteAsset:
         return (isinstance(self.surface , list))
     
     def getSurface(self , index = 0):
-        if (self.hasAnimation): return self.surface[index]
-        else: return self.surface
+        if (isinstance(self.surface , list)):
+            return self.surface[index]
+        else:
+            return self.surface
 
 
 
@@ -473,10 +512,9 @@ class fontAsset:
 
 
 class backgroundLayer():
-    def __init__(self , spriteAsset , horizontalTile = False , verticalTile = False , tileRotation = 0 , strecth = False , colour = (255,255,255)):
+    def __init__(self , spriteAsset , horizontalTile = False , verticalTile = False , strecth = False , colour = (255,255,255)):
         self.spriteAsset    = spriteAsset
         self.horizontalTile = horizontalTile
-        self.tileRotation   = tileRotation
         self.verticalTile   = verticalTile
         self.strecth        = strecth
         self.colour         = colour
@@ -492,6 +530,12 @@ class backgroundLayer():
         if (not isinstance(self.spriteAsset , spriteAsset)):
             print(f"ERROR!! variabel \"self.spriteAsset\" SALAH! di fungsi draw di class backgroundLayer\nArg yang diberikan:{self.spriteAsset}")
             return 
+        
+        #V mempersiapkan warna penggambaran
+        originalDrawColour = currentDrawColour
+        drawSetColour(self.colour)
+
+        iterationCount = 0
         
         frameTotal = 1 #< Jumlah gambar yang akan digunakan untuk menggambar sprite, jika spriteAsset berupa list, maka frameTotal akan diatur sesuai dengan jumlah gambar di dalam list tersebut.
         if (self.animationPlay):
@@ -510,13 +554,12 @@ class backgroundLayer():
                     if self.animationLoop:
                         self.animationCurrentFrame = 0 #< Kembali ke frame awal
                     else:
-                        self.animationCurrentFramee = frameTotal - 1 #< Berhenti di frame terakhir
+                        self.animationCurrentFrame = frameTotal - 1 #< Berhenti di frame terakhir
 
             #V Mencegah error jika nilai frameTotal tiba-tiba berubah
             frameTotal = int(self.animationCurrentFrame) % max(1, frameTotal)
         
         imageSurface = self.spriteAsset.getSurface(frameTotal)
-
 
 
         #V Jika gambar diperintahkan melebar memenuhi room
@@ -529,27 +572,58 @@ class backgroundLayer():
             # Menggunakan ternary operator untuk mencegah pembagian dengan nol (ZeroDivisionError)
             scaleX = currentRoom.roomWidth / original_width if (original_width) > 0 else 1
             scaleY = currentRoom.roomHeight / original_height if (original_height) > 0 else 1
-
+            
+            
             # 3. Panggil fungsi drawSprite
             # KOREKSI 2: drawSprite meminta argumen pertama berupa object 'spriteAsset', bukan 'imageSurface'.
             drawSprite(self.spriteAsset, 0,0 , scaleX,scaleY , 0 , frameTotal)
             
+            
+            
+
+
+
 
         #V Jika gambar diperintahkan sebagai tile memenuhi room
         elif (self.horizontalTile)or(self.verticalTile):
-            original_Width = imageSurface.get_width()
-            original_Height = imageSurface.get_height()
+            original_width = imageSurface.get_width()
+            original_height = imageSurface.get_height()
 
-            xTileCount = currentRoom.roomWidth
-            yTileCount = currentRoom.roomHeight
+            xTileCount = currentRoom.roomWidth // original_width + 1
+            yTileCount = currentRoom.roomHeight // original_height + 1
             
             drawCurrentX = 0
             drawCurrentY = 0
 
-            if (self.horizontalTile):
+            #V Menggambar sisi tile vertikal dan horizontal
+            if (self.horizontalTile and self.verticalTile):
+                for x in range(xTileCount):
+                    for y in range(yTileCount):
+
+                        drawSprite(self.spriteAsset, x*original_width,y*original_height , 1,1 , 0 , frameTotal)
+
+
+
+            #V Menggambar sisi tile vertikal
+            elif (self.verticalTile):
                 for i in range(xTileCount):
-                    drawSprite(self.spriteAsset , drawCurrentX,drawCurrentY , 1,1 , 0 , frameTotal)
-                    drawCurrentX += 1
+                    drawSprite(self.spriteAsset , drawCurrentX,0 , 1,1 , 0 , frameTotal)
+                    drawCurrentX += original_width
+
+            #V Menggambar sisi tile horizontal
+            elif (self.horizontalTile):
+                for i in range(yTileCount):
+                    drawSprite(self.spriteAsset , 0,drawCurrentY , 1,1 , 0 , frameTotal)
+                    drawCurrentY += original_height
+        
+        #V Jika tidak ada parameter yang memenuhi syarat, background akan digambar hanya 1 tile saja
+        else:
+            drawSprite(self.spriteAsset, 0,0 , 1,1 , 0 , frameTotal)
+
+        #V Mengembalikan warna sebelumnya untuk fase penggambaran berikutnya.
+        drawSetColour(originalDrawColour)
+        iterationCount += 1
+                    
             
 
 
@@ -583,6 +657,7 @@ class instance:
         self.xScale = xScale
         self.yScale = yScale
         self.rotation = 0
+        self.blend = (255,255,255)
 
         self.solid = False
         self.visible = True
@@ -593,8 +668,8 @@ class instance:
         self.update = True
 
         self.animationCurrentFrame = 0
-        self.animationPlay = False
-        self.animationLoop = False
+        self.animationPlay = True
+        self.animationLoop = True
         self.animationSpeed = 0.025
     
 
@@ -624,9 +699,8 @@ class instance:
 
         #V Menginstal semua pengaturan opsional (Pengaturan opsional untuk mengatur variabel yang ada di class ini seperti animationSpeed, currentSprite, DLL)
         for settingName in optionalSettings:
-            if (settingName not in self):
-                settingArgument = optionalSettings[settingName]
-                self[settingName] = settingArgument
+            settingArgument = optionalSettings[settingName]
+            self.__dict__[settingName] = settingArgument
 
         #V Memanggil create event saat objek baru saja diciptakan
         if (callable(self.events["create"])):
@@ -659,11 +733,13 @@ class instance:
         #V Mencegah error jika nilai frameTotal tiba-tiba berubah
         frameTotal = int(self.animationCurrentFrame) % max(1, frameTotal)
 
-
+        originalDrawColour = currentDrawColour
+        drawSetColour(self.blend)
         drawSprite(self.spriteAsset,
                     self.x, self.y,
                     self.xScale  , self.yScale   , self.rotation,
                     frameTotal)
+        drawSetColour(originalDrawColour)
 
 
             
@@ -759,16 +835,16 @@ drawSetFont(fontAsset("Arial" , 12))
 #V Sekumpulan aset mentah yang akan digunakan untuk game, alih-alih menyatukan dengan variabel luar lain.
 rawAssets = {
     "gameIcon" : pygame.image.load(os.path.join("assets" , "gameIcon2.png")),
-
     "grassTile" : pygame.image.load(os.path.join("assets" , "grassTile.jpg")),
+    "emptySpr" : pygame.image.load(os.path.join("assets" , "Empty.png")),
 }
 
 
 #V Sekumpulan aset yang sudah dibungkus.
 Assets = {
-    "spr_heart" : spriteAsset(rawAssets["gameIcon"]),
-
+    "spr_heart" : spriteAsset([rawAssets["gameIcon"] , rawAssets["grassTile"]]),
     "spr_grassTile" : spriteAsset(rawAssets["grassTile"]),
+    "spr_empty" : spriteAsset(rawAssets["emptySpr"]),
 }
 #========================
 
@@ -819,11 +895,13 @@ def control():
 # INISIALISASI INSTANSI, DAN FUNGSI / METHOD UNTUK EVENT INSTANSI.
 #========================
 #> Inisialisasi blueprint "roomInit"
-roomAddBlueprint("roomInit", "backgroundLayer", backgroundLayer(Assets["spr_grassTile"], True,True,0, False))
+#roomAddBlueprint("roomInit", "backgroundLayer", backgroundLayer(Assets["spr_grassTile"], True,True,False))
 roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
     instances = {
             "instanceTest" : instance(Assets["spr_heart"], 200, 200, 4, 4, eventDefinition = {
                 "step": control,
+            },optionalSettings = {
+                "roomPersist": True
             })
     }
 ))
@@ -834,7 +912,7 @@ roomAddBlueprint("roomInit", "instancesLayer", instanceLayer(
 #> Inisialisasi blueprint "room2"
 roomAddBlueprint("room2", "instancesLayer", instanceLayer(
     instances = {
-            "instanceTest" : instance(Assets["spr_heart"], 400, 400, 4, 4, eventDefinition = {
+            "instanceTest" : instance(Assets["spr_empty"], 400, 400, 4, 4, eventDefinition = {
                 "step": control,
             })
     }
@@ -903,14 +981,14 @@ while isRunning:
     
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
     if (DEBUGUI):
-        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}", 20 , 20 , 2 , 2.3))
+        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}\nFPS{currentFPS}", 20 , 20 , 2 , 2.3))
     
     #V Menambahkan fungsi untuk menggambar permukaan kamera ke permukaan aplikasi, dengan ukuran yang disesuaikan dengan ukuran layar.
     scaledCamera = pygame.transform.scale(currentRoom.cameraSurface, (screenWidth, screenHeight))
     aplicationSurface.blit(scaledCamera, (0, 0))
 
 
-
+    
 
     #V Mengiterasikan semua instansi layer yang tercipta.
     for layerName, layer in layers.items():
@@ -936,7 +1014,7 @@ while isRunning:
         #V Jika tipe layer adalah backgroundLayer
         elif (isinstance(layer , backgroundLayer)):
             if (layer.isActive):
-                layer.draw()
+                runingEventNodes["beginDraw"].append(layer.draw)
 
 
 
@@ -956,6 +1034,7 @@ while isRunning:
     ##V Akhir perulangan
     pygame.display.flip()
     clock.tick(actualFPS)
+    currentFPS = int(clock.get_fps())
     ##<
 #========================
 
