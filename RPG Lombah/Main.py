@@ -11,6 +11,7 @@ screenWidth = 1000            #< Lebar jendela game.
 screenHeight = 800            #< Tinggi jendela game.
 actualFPS = 60                #< (Frame Per Second) Jumlah bingkai yang akan dirender dalam 1 detik.
 
+
 DEBUGUI = True                    #< Apakah informasi akan ditampilkan atau tidak.
 
 #V Data yang akan disimpan untuk progres.
@@ -30,7 +31,7 @@ Assets = {}
 roomInstances = {} #< Variabel sekumpulan ruangan. 
 
 globalVariables = {} #< Variabel yang aman untuk diakses semua event.
-
+framePassed = 0
 consts = { #< Konstanta yang aman untuk diakses semua event, tetapi tidak boleh diubah nilainya.
     "surface" : {
         "applicationSurface" : 0,
@@ -81,7 +82,6 @@ currentDrawFontAsset = None #< Font yang saat ini digunakan untuk menggambar.
 
 #V Event dengan sekumpulan fungsi/method nya yang sedang dijalankan di step saat ini.
 runingEventNodes = {
-        "create" : [],
         "beginStep" : [], "step" : [], "endStep" : [],
         "beginDraw" : [], "draw" : [], "endDraw" : [],
         "beginDrawGUI" : [], "drawGUI" : [], "endDrawGUI" : [],
@@ -675,10 +675,6 @@ class timeSpawn(): # tambahkan fitur maxloop, maximal perulangan pemanggilan
 
 
 
-def tsrespone():
-    createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));createInstance("instancesLayer" , f"{uuid.uuid4()}" , instance(random.choice([Assets["spr_heart"] , Assets["spr_grassTile"] , Assets["spr_heart"]]),random.randrange(0,screenWidth),random.randrange(0,screenHeight),1,1));
-ts = timeSpawn(tsrespone , 1 , True)
-ts.execute()
 
 
 
@@ -711,7 +707,12 @@ class instance:
         self.animationSpeed = 0.025
 
         self.isDestroySoon = False #< Apakah di step berikutnya, instansi ini akan dihancurkan?
-    
+        self.createEventHasBeenCalled = False #< Apakah create event sudah di jalankan sebelumnya atau belum?
+
+
+        self.var = {}
+
+        
 
         #V INISIALISASI EVENT
         self.events = {
@@ -742,9 +743,6 @@ class instance:
             settingArgument = optionalSettings[settingName]
             self.__dict__[settingName] = settingArgument
 
-        #V Memanggil create event saat objek baru saja diciptakan
-        if (callable(self.events["create"])):
-            runingEventNodes["create"].append(self.events["create"])
 
 
 
@@ -911,7 +909,7 @@ Assets = {
 #========================
 roomInstances["starterPlace"] = room(1000 , 1000)
 
-roomInstances["room2"] = room(screenWidth , screenHeight)
+roomInstances["bossFightPlace"] = room(screenWidth , screenHeight)
 
 #========================
 
@@ -974,8 +972,8 @@ def controlerOnStep():
             return
 roomAddBlueprint("starterPlace", "instancesLayer", instanceLayer(
     instances = {
-            "controler" : instance(Assets["spr_heart"], 200, 200, 2, 2, eventDefinition = {
-                "step": controlerOnStep,
+            "controler" : instance(Assets["spr_empty"], 200, 200, 2, 2, eventDefinition = {
+                
             },optionalSettings = {
                 "roomPersist": True
             })
@@ -986,10 +984,37 @@ roomAddBlueprint("starterPlace", "instancesLayer", instanceLayer(
 
 
 #> Inisialisasi blueprint "room2"
-roomAddBlueprint("room2", "instancesLayer2", instanceLayer(
+def bossOnCreate(instParentName):
+    parentInst = findFirstInstance("instancesLayer2" , instParentName , "bossFightPlace")
+    
+    if (not isinstance(parentInst , instance)): return
+
+    parentInst.var["state"] = "opening"
+
+    #V Agar volumenya besar
+
+    for i in range(5):
+        Assets["snd_omegaFloweyFightIntro"].play(0)
+
+
+    def ts_playBossMusic():
+        Assets["snd_VOIDSTAR"].play(-1)
+        
+    ts = timeSpawn(ts_playBossMusic , (int(actualFPS * Assets["snd_omegaFloweyFightIntro"].get_length())))
+    ts.execute()
+    print(ts.callDelay)
+
+def bossOnStep(instParentName):
+    parentInst = findFirstInstance("instancesLayer2" , instParentName , "bossFightPlace")
+
+    if (not isinstance(parentInst , instance)): return
+    
+
+roomAddBlueprint("bossFightPlace", "instancesLayer2", instanceLayer(
     instances = {
-            "instanceTest" : instance(Assets["spr_grassTile"], 400, 400, 4, 4, eventDefinition = {
-                "step": controlerOnStep,
+            "boss" : instance(Assets["spr_grassTile"], currentRoom.roomWidth/2, 0, 4, 4, eventDefinition = {
+                "create": lambda: bossOnCreate("boss"),
+                "step": lambda: bossOnStep("boss"),
             })
     }
 ))
@@ -1004,7 +1029,7 @@ roomAddBlueprint("room2", "instancesLayer2", instanceLayer(
 # INISIALISASI RUANGAN (2)
 #========================
 #V Ruangan yang pertama kali dimasuki saat game dimulai.
-roomGoto("starterPlace")
+roomGoto("bossFightPlace")
 #========================
 
 
@@ -1057,7 +1082,7 @@ while isRunning:
     
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
     if (DEBUGUI):
-        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}\nFPS{currentFPS}", 20 , 20 , 2 , 2.3))
+        runingEventNodes["endDrawGUI"].append( lambda: drawText(f"CAM: X:{currentRoom.cameraX} Y:{currentRoom.cameraY} Width:{currentRoom.cameraWidth} Height:{currentRoom.cameraHeight}\nRoomName: {currentRoomName}\nDisplay: Width{screenWidth} Height{screenHeight}\nFPS{currentFPS} FramePassed{framePassed}", 20 , 20 , 2 , 2.3))
     
     #V Menambahkan fungsi untuk menggambar permukaan kamera ke permukaan aplikasi, dengan ukuran yang disesuaikan dengan ukuran layar.
     scaledCamera = pygame.transform.scale(currentRoom.cameraSurface, (screenWidth, screenHeight))
@@ -1089,11 +1114,24 @@ while isRunning:
                 if (instanceObject.solid):
                     for instanceName2 , instanceObject2 in layer.instances.items():
                         if (instanceObject.isColliding(instanceObject2)):
-                            print("menyentuh!")
+                            print("menyentuh!") #< nanti ditambah!!!!!!!!!!!!!!!!!!!!!!!!!! agar instansi gk bisa gerak #BUG #BUG
 
 
                 #V Menambahkan semua fungsi / method yang ada di setiap event instansi ke dalam variabel runingEventNodes, agar dapat dijalankan secara berurutan di step selanjutnya.
                 for eventName , eventFunction in instanceObject.events.items():
+
+                    #V Menjalankan create event sekali seumur hidup instansi saat instansi baru saja diciptakan
+                    if (eventName == "create" and not instanceObject.createEventHasBeenCalled):
+                        if (callable(eventFunction)):
+                            eventFunction()
+                            instanceObject.createEventHasBeenCalled = True
+
+
+                    #V NAMA EVENT YANG TIDAK AKAN DIJALANKAN 
+                    blacklistEventName = ["create" , "onDestroy"]
+                    #V Jika nama event termasuk dalam blacklist
+                    if (eventName in blacklistEventName): continue
+
                     if callable(eventFunction):
                         runingEventNodes[eventName].append(eventFunction)
 
@@ -1120,7 +1158,7 @@ while isRunning:
         destroyThisInstances.clear()        
 
 
-
+        timeSpawnIDDeleteList = []
         for timeSpawnId , timeSpawnObject in timeSpawns.items():
             if (isinstance(timeSpawnObject , timeSpawn)):
 
@@ -1130,11 +1168,16 @@ while isRunning:
                 if (timeSpawnObject.currentDelayTime <= 0):
                     timeSpawnObject.functionToCall()
                     timeSpawnObject.currentDelayTime = 0
+                    
 
                     if (not timeSpawnObject.callLoop):
-                        timeSpawns.__delitem__("timeSpawnId")
+                        timeSpawnIDDeleteList.append(timeSpawnId)
                     else:
                         timeSpawnObject.currentDelayTime = timeSpawnObject.callDelay
+
+        for timeSpawnId in timeSpawnIDDeleteList:
+            timeSpawns.__delitem__(timeSpawnId)
+        timeSpawnIDDeleteList.clear()
 
                 
          
@@ -1154,6 +1197,7 @@ while isRunning:
     pygame.display.flip()
     clock.tick(actualFPS)
     currentFPS = int(clock.get_fps())
+    framePassed += 1
     ##<
 #========================
 
