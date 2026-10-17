@@ -21,8 +21,6 @@ DEBUGUI = False                    #< Apakah informasi akan ditampilkan atau tid
 
 #V Data yang akan disimpan untuk progres.
 SaveData = {
-    "totalRunTime" : 0,
-    "lastRunTime" : 0,
 }
 
 #V Sekumpulan aset mentah yang akan digunakan untuk game, alih-alih menyatukan dengan variabel luar lain.
@@ -396,6 +394,14 @@ def drawSprite(_spriteAsset, x, y, scaleX=1, scaleY=1, rotation=0, subImage=0, a
     else:
         # Langsung gambar surface asli jika tidak ada perubahan warna/alpha (Sangat menghemat CPU)
         surfaceDraw(imageSurface, x, y)
+
+
+
+
+
+
+
+
 
 
 
@@ -1322,17 +1328,7 @@ def playerOnStep(instParentName):
             global isRunning
             isRunning = False
         ts_gameOver = timeSpawn(tsf_gameOver , (2.5+8)*solidFPS)
-        ts_gameOver.execute()
-
-
-
-
-
-        
-
-        #
-
-        
+        ts_gameOver.execute()  
 def playerOnDraw(instParentName):
     parentInst = findFirstInstance("instancesLayer2" , instParentName)
     if (not isinstance(parentInst , instance)): return
@@ -1349,8 +1345,10 @@ def playerOnDraw(instParentName):
 
         drawText(f"SOUL HEALTH: {parentInst.health}\nTIME: {hasil_akhir}" , 25,25 ,2,2 , 0 , (255,233,233))
         
-
 def diedZoneColliderOnStep(instParentName):
+
+
+
     parentInst = findFirstInstance("instancesLayer2" , instParentName)
     playerInst = findFirstInstance("instancesLayer2" , "player")
     if (not isinstance(parentInst , instance)): return
@@ -1360,6 +1358,7 @@ def diedZoneColliderOnStep(instParentName):
 
     if (globalVariables["Bstate"] == "opening1"):
         parentInst.y += 1 * (solidFPS * deltaTime) 
+
 def bossOnCreate(instParentName):
     currentRoom.cameraWidth *= 0.95
     currentRoom.cameraHeight *= 0.95
@@ -1414,9 +1413,6 @@ def bossOnCreate(instParentName):
         #ts_setHelp.execute()
     else:
         parentInst.y = 215.07000000000173
-    
-
-
 def bossOnStep(instParentName):
     parentInst = findFirstInstance("instancesLayer2" , instParentName)
     if (not isinstance(parentInst , instance)): return
@@ -1522,21 +1518,6 @@ def bossOnStep(instParentName):
                 name = f"bullet{uuid.uuid4()}"
                 createInstance("instancesLayer2" , name , instance(Assets["spr_eye"] , 0,random.randint(parentInst.x+20,screenHeight) ,0,0.3,
                                                                    {"step":lambda n=name: bulletOnStep(n) , "create":lambda n=name:bulletOnCreate(n)},{"strecthing":True}))
-
-                    
-
-
-
-
-
-
-
-
-
-
-
-
-    
 def bossOnDraw(instParentName):
 
     parentInst = findFirstInstance("instancesLayer2" , instParentName)     
@@ -1742,8 +1723,8 @@ while isRunning:
 
     
 
-    laguAwalLen = Assets["snd_MomegaFloweyFightIntro2"].get_length() # 16 Detik
-    suaraKetawaLen = Assets["snd_omegaFloweyLaugh"].get_length() # 6 detik
+    #aguAwalLen = Assets["snd_MomegaFloweyFightIntro2"].get_length() # 16 Detik
+    #suaraKetawaLen = Assets["snd_omegaFloweyLaugh"].get_length() # 6 detik
     
     
     #V Menambahkan fungsi untuk menggambar informasi debug jika DEBUGUI bernilai True.
